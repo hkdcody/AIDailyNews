@@ -1,0 +1,1105 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Webhook Caller Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+            padding: 40px 60px;
+            color: #2c3e50;
+        }
+
+        .catalog {
+            position: fixed;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%) translateX(-100%);
+            width: 224px;
+            background: white;
+            border-radius: 0 12px 12px 0;
+            padding: 16px;
+            box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+            max-height: 56vh;
+            overflow-y: auto;
+            z-index: 1000;
+            transition: transform 0.3s ease-out;
+            opacity: 0;
+        }
+
+        .catalog.visible {
+            transform: translateY(-50%) translateX(0);
+            opacity: 1;
+        }
+
+        .catalog h3 {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .catalog-item {
+            padding: 8px 10px;
+            margin: 4px 0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+            color: #374151;
+            border-left: 3px solid transparent;
+        }
+
+        .catalog-item:hover {
+            background: #f3f4f6;
+            border-left-color: #2c5aa0;
+        }
+
+        .catalog-item.active {
+            background: #eff6ff;
+            border-left-color: #2c5aa0;
+            color: #2c5aa0;
+            font-weight: 500;
+        }
+
+        .catalog-item.loading {
+            color: #f59e0b;
+            font-style: italic;
+        }
+
+        .main-content {
+            width: 100%;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 40px 50px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 40px;
+            border-left: 5px solid #2c5aa0;
+            position: relative;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .header-title {
+            flex: 1;
+        }
+
+        h1 {
+            color: #1a1a1a;
+            margin-bottom: 8px;
+            font-size: 32px;
+            font-weight: 600;
+            letter-spacing: -0.5px;
+        }
+
+        .subtitle {
+            color: #6b7280;
+            font-size: 16px;
+            font-weight: 400;
+        }
+
+        .status-badge-corner {
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+
+        .status-enabled {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-paused {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s infinite;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .info-box {
+            background: #f9fafb;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .info-label {
+            font-size: 11px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .info-value {
+            font-size: 15px;
+            font-weight: 500;
+            color: #1a1a1a;
+            word-break: break-all;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-top: 30px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: #2c5aa0;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        button:hover {
+            background: #1e3a8a;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(44, 90, 160, 0.3);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .clear-btn {
+            background: white;
+            color: #dc2626;
+            border: 1px solid #dc2626;
+        }
+
+        .clear-btn:hover {
+            background: #dc2626;
+            color: white;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+        }
+
+        .refresh-btn {
+            background: white;
+            color: #2c5aa0;
+            border: 1px solid #2c5aa0;
+        }
+
+        .refresh-btn:hover {
+            background: #2c5aa0;
+            color: white;
+        }
+
+        .response-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 30px;
+        }
+
+        .response-card {
+            background: white;
+            padding: 0;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+            transition: all 0.3s;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .response-card:hover {
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 30px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        .card-header:hover {
+            background: #f3f4f6;
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1a1a1a;
+            flex: 1;
+        }
+
+        .card-title.generating {
+            color: #f59e0b;
+            font-style: italic;
+        }
+
+        .card-title.generating::after {
+            content: '...';
+            animation: dots 1.5s infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+
+        .card-header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .collapse-icon {
+            font-size: 20px;
+            color: #6b7280;
+            transition: transform 0.3s;
+        }
+
+        .collapsed .collapse-icon {
+            transform: rotate(-90deg);
+        }
+
+        .card-content {
+            max-height: 10000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
+            opacity: 1;
+        }
+
+        .card-content.collapsed {
+            max-height: 0;
+            opacity: 0;
+        }
+
+        .response-card.transitioning .card-content {
+            pointer-events: none;
+        }
+
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+
+        .status-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status-error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .timestamp {
+            color: #6b7280;
+            font-size: 12px;
+            font-weight: 400;
+            padding: 8px 30px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .content-title {
+            font-size: 28px;
+            font-weight: 600;
+            color: #1a1a1a;
+            padding: 30px 60px 20px 60px;
+            border-bottom: 2px solid #e5e7eb;
+            background: linear-gradient(to right, #f9fafb 0%, white 100%);
+            letter-spacing: -0.5px;
+        }
+
+        .content-body {
+            padding: 40px 60px;
+            line-height: 1.8;
+            color: #374151;
+            font-size: 16px;
+            background: white;
+        }
+
+        .content-body p {
+            margin: 20px 0;
+            line-height: 1.9;
+        }
+
+        .content-body h1 {
+            font-size: 32px;
+            font-weight: 700;
+            color: #111827;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 3px solid #2c5aa0;
+            letter-spacing: -0.8px;
+        }
+
+        .content-body h2 {
+            font-size: 26px;
+            font-weight: 600;
+            color: #1f2937;
+            margin-top: 35px;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+            letter-spacing: -0.5px;
+        }
+
+        .content-body h3 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #374151;
+            margin-top: 28px;
+            margin-bottom: 14px;
+        }
+
+        .content-body ul, .content-body ol {
+            margin: 25px 0;
+            padding-left: 28px;
+        }
+
+        .content-body li {
+            margin: 14px 0;
+            line-height: 1.8;
+            color: #4b5563;
+        }
+
+        .content-body li::marker {
+            color: #2c5aa0;
+            font-weight: 600;
+        }
+
+        .content-body code {
+            background: #f3f4f6;
+            color: #1f2937;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .content-body pre {
+            background: #1f2937;
+            color: #e5e7eb;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 25px 0;
+            border: 1px solid #374151;
+        }
+
+        .content-body pre code {
+            background: transparent;
+            padding: 0;
+            border: none;
+            color: #e5e7eb;
+        }
+
+        .content-body a {
+            color: #2c5aa0;
+            text-decoration: none;
+            font-weight: 500;
+            border-bottom: 1px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .content-body a:hover {
+            border-bottom-color: #2c5aa0;
+        }
+
+        .content-body strong {
+            color: #111827;
+            font-weight: 600;
+        }
+
+        .content-body em {
+            font-style: italic;
+            color: #4b5563;
+        }
+
+        .content-body blockquote {
+            border-left: 4px solid #2c5aa0;
+            padding-left: 24px;
+            margin: 25px 0;
+            color: #4b5563;
+            font-style: italic;
+            background: #f9fafb;
+            padding: 20px 24px;
+            border-radius: 0 8px 8px 0;
+        }
+
+        .content-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+        }
+
+        .content-body table th {
+            background: #f9fafb;
+            padding: 12px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #111827;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .content-body table td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .response-data {
+            padding: 30px 60px;
+            background: #f9fafb;
+        }
+
+        .data-item {
+            margin: 12px 0;
+            padding: 12px 16px;
+            background: white;
+            border-radius: 6px;
+            border-left: 3px solid #2c5aa0;
+            border: 1px solid #e5e7eb;
+        }
+
+        .data-key {
+            color: #2c5aa0;
+            font-weight: 600;
+            margin-right: 8px;
+            font-size: 14px;
+        }
+
+        .data-value {
+            color: #374151;
+            font-size: 14px;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            padding: 20px 30px;
+            color: #991b1b;
+            margin: 20px 60px;
+            border-left: 4px solid #dc2626;
+            border-radius: 6px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 100px 40px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .empty-state h2 {
+            color: #1a1a1a;
+            margin-bottom: 12px;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .empty-state p {
+            color: #6b7280;
+            font-size: 15px;
+            margin: 8px 0;
+        }
+
+        .schedule-info {
+            background: linear-gradient(135deg, #2c5aa0 0%, #1e3a8a 100%);
+            color: white;
+            padding: 24px 30px;
+            border-radius: 8px;
+            margin-top: 30px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(44, 90, 160, 0.3);
+            display: none;
+        }
+
+        .schedule-info h3 {
+            margin-bottom: 8px;
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .schedule-info p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 20px 15px;
+            }
+
+            .header {
+                padding: 30px 25px;
+            }
+
+            .content-title {
+                padding: 25px 25px 15px 25px;
+                font-size: 24px;
+            }
+
+            .content-body {
+                padding: 30px 25px;
+                font-size: 15px;
+            }
+
+            .response-data {
+                padding: 20px 25px;
+            }
+
+            .error-message {
+                margin: 20px 25px;
+            }
+        }
+    </style>
+</head>
+<body>
+<div class="catalog" id="catalog">
+    <h3>Available Reports</h3>
+    <div id="catalogItems"></div>
+</div>
+
+<div class="main-content">
+    <div class="container">
+        <div class="header">
+            <div class="header-top">
+                <div class="header-title">
+                    <h1>
+                        <span class="status-indicator"></span>
+                        Market Intelligence Dashboard
+                    </h1>
+                    <p class="subtitle">Automated webhook intelligence reporting system</p>
+                </div>
+                <div th:if="${@environment.getProperty('webhook.scheduler-enabled')} == 'true'" class="status-badge-corner status-enabled">
+                    ✓ Auto-Trigger Active
+                </div>
+                <div th:if="${@environment.getProperty('webhook.scheduler-enabled')} != 'true'" class="status-badge-corner status-paused">
+                    ⏸ Auto-Trigger Paused
+                </div>
+            </div>
+
+            <div class="info-grid">
+                <div class="info-box">
+                    <div class="info-label">Webhook URL</div>
+                    <div class="info-value" th:text="${@environment.getProperty('webhook.url')}">Not configured</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Schedule</div>
+                    <div class="info-value">Daily at 9:00 AM</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Scheduler Status</div>
+                    <div class="info-value" th:text="${@environment.getProperty('webhook.scheduler-enabled')} == 'true' ? '✅ Enabled' : '❌ Disabled'">Unknown</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label">Total Calls</div>
+                    <div class="info-value" th:text="${responses.size()}">0</div>
+                </div>
+            </div>
+
+            <div class="schedule-info" th:if="${@environment.getProperty('webhook.scheduler-enabled')} == 'true'">
+                <h3>Scheduled Daily Report</h3>
+                <p>Automated intelligence gathering scheduled for 09:00 daily</p>
+            </div>
+
+            <div class="controls">
+                <button onclick="triggerWebhook()">
+                    Fetch AI News
+                </button>
+                <button onclick="triggerWeixinWebhook()">
+                    Fetch Weixin News
+                </button>
+                <button class="refresh-btn" onclick="refreshPage()">
+                    Refresh Dashboard
+                </button>
+                <button class="clear-btn" onclick="clearHistory()">
+                    Clear History
+                </button>
+            </div>
+        </div>
+
+        <div class="response-grid">
+            <div class="empty-state" th:if="${responses.isEmpty()}">
+                <h2>No Reports Available</h2>
+                <p>No intelligence reports have been generated yet.</p>
+                <p>Click "Fetch Latest Report" to retrieve current data or wait for the scheduled daily update.</p>
+            </div>
+
+            <div class="response-card" th:each="response, iterStat : ${responses}" th:id="'card-' + ${iterStat.index}">
+                <div class="card-header" th:attr="data-card-id=${iterStat.index}" onclick="toggleCard(this)">
+                    <div class="card-title" th:text="${response.data != null && response.data.containsKey('title') ? response.data.get('title') : 'Response Report'}">
+                        Response Report
+                    </div>
+                    <div class="card-header-right">
+                    <span class="status-badge"
+                          th:classappend="${response.statusCode >= 200 && response.statusCode < 300} ? 'status-success' : 'status-error'"
+                          th:text="'Status: ' + ${response.statusCode}">
+                    </span>
+                        <span class="collapse-icon">▼</span>
+                    </div>
+                </div>
+
+                <div class="timestamp" th:text="'Generated at ' + ${#temporals.format(response.timestamp, 'yyyy-MM-dd HH:mm')}">
+                </div>
+
+                <div class="card-content" th:attr="data-card-id=${iterStat.index}">
+                    <!-- Display Main Content -->
+                    <div class="content-body" th:if="${response.data != null && response.data.containsKey('content')}">
+                        <div class="content-text" th:attr="data-content=${response.data.get('content')}"></div>
+                    </div>
+
+                    <!-- Fallback: Display all data if no content field -->
+                    <div class="response-data" th:if="${response.data != null && !response.data.containsKey('content')}">
+                        <div th:each="entry : ${response.data}" class="data-item">
+                            <span class="data-key" th:text="${entry.key} + ':'"></span>
+                            <span class="data-value" th:text="${entry.value}"></span>
+                        </div>
+                    </div>
+
+                    <div class="error-message" th:if="${response.error != null}">
+                        <strong>Error:</strong>
+                        <div th:text="${response.error}"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script th:inline="none">
+    function renderContent(text) {
+        if (!text) return '';
+
+        var html = text;
+
+        html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+        html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+        html = html.replace(/^# (.*$)/gim, '<h1>$1</h1>');
+
+        html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        html = html.replace(/\_\_(.*?)\_\_/g, '<strong>$1</strong>');
+
+        html = html.replace(/\*(.*?)\*/g, '<em>$1</em>');
+        html = html.replace(/\_(.*?)\_/g, '<em>$1</em>');
+
+        var linkPattern = /\[([^\]]+)\]\(([^)]+)\)/g;
+        html = html.replace(linkPattern, '<a href="$2" target="_blank">$1</a>');
+
+        html = html.split('\n\n').map(function(para) {
+            if (para.trim().startsWith('<h') || para.trim().startsWith('<ul') || para.trim().startsWith('<ol')) {
+                return para;
+            }
+            return para.trim() ? '<p>' + para.trim() + '</p>' : '';
+        }).join('');
+
+        html = html.replace(/\n/g, '<br/>');
+
+        html = html.replace(/^\* (.+)(<br\/>|$)/gim, '<li>$1</li>');
+        html = html.replace(/^- (.+)(<br\/>|$)/gim, '<li>$1</li>');
+        html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>');
+
+        html = html.replace(/^\d+\. (.+)(<br\/>|$)/gim, '<li>$1</li>');
+
+        html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+        return html;
+    }
+
+    async function triggerWebhook() {
+        var button = event.target;
+        var originalText = button.innerHTML;
+        button.innerHTML = '<span class="loading"></span> Calling...';
+        button.disabled = true;
+
+        // Add loading indicator to catalog
+        var loadingId = 'loading-' + Date.now();
+        addLoadingCardToCatalog(loadingId);
+
+        try {
+            var response = await fetch('/api/trigger', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                // Wait a bit for the report to be generated
+                setTimeout(function() {
+                    location.reload();
+                }, 2000);
+            } else {
+                alert('Error triggering webhook');
+                button.innerHTML = originalText;
+                button.disabled = false;
+                removeLoadingCardFromCatalog(loadingId);
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+            button.innerHTML = originalText;
+            button.disabled = false;
+            removeLoadingCardFromCatalog(loadingId);
+        }
+    }
+
+    function addLoadingCardToCatalog(id) {
+        var catalogItems = document.getElementById('catalogItems');
+        if (catalogItems) {
+            var loadingItem = document.createElement('div');
+            loadingItem.className = 'catalog-item loading';
+            loadingItem.id = id;
+            loadingItem.textContent = 'Generating Report';
+            catalogItems.insertBefore(loadingItem, catalogItems.firstChild);
+        }
+    }
+
+    function removeLoadingCardFromCatalog(id) {
+        var loadingItem = document.getElementById(id);
+        if (loadingItem) {
+            loadingItem.remove();
+        }
+    }
+
+    async function triggerWeixinWebhook() {
+        var button = event.target;
+        var originalText = button.innerHTML;
+        button.innerHTML = '<span class="loading"></span> Calling...';
+        button.disabled = true;
+
+        var loadingId = 'loading-' + Date.now();
+        addLoadingCardToCatalog(loadingId);
+
+        try {
+            var response = await fetch('/api/trigger/weixin', {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                setTimeout(function() {
+                    location.reload();
+                }, 2000);
+            } else {
+                var data = await response.json();
+                alert('Error: ' + (data.error || 'Failed to trigger Weixin webhook'));
+                button.innerHTML = originalText;
+                button.disabled = false;
+                removeLoadingCardFromCatalog(loadingId);
+            }
+        } catch (error) {
+            alert('Error: ' + error.message);
+            button.innerHTML = originalText;
+            button.disabled = false;
+            removeLoadingCardFromCatalog(loadingId);
+        }
+    }
+
+    function refreshPage() {
+        location.reload();
+    }
+
+    function toggleCard(headerElement) {
+        var card = headerElement.parentElement;
+        var cardId = headerElement.getAttribute('data-card-id');
+        var content = card.querySelector('.card-content');
+
+        // Prevent rapid toggling
+        if (card.classList.contains('transitioning')) {
+            return;
+        }
+
+        card.classList.add('transitioning');
+
+        if (content.classList.contains('collapsed')) {
+            content.classList.remove('collapsed');
+            card.classList.remove('collapsed');
+            saveCardState(cardId, false);
+        } else {
+            content.classList.add('collapsed');
+            card.classList.add('collapsed');
+            saveCardState(cardId, true);
+        }
+
+        setTimeout(function() {
+            card.classList.remove('transitioning');
+        }, 300);
+    }
+
+    function navigateToCard(cardId) {
+        var card = document.getElementById('card-' + cardId);
+        if (card) {
+            // Expand the card if collapsed
+            var content = card.querySelector('.card-content');
+            var header = card.querySelector('.card-header');
+
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                card.classList.remove('collapsed');
+                saveCardState(cardId, false);
+            }
+
+            // Smooth scroll to card
+            card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+            // Update active state in catalog
+            updateCatalogActive(cardId);
+        }
+    }
+
+    function updateCatalogActive(activeId) {
+        var items = document.querySelectorAll('.catalog-item');
+        items.forEach(function(item) {
+            item.classList.remove('active');
+        });
+
+        var activeItem = document.querySelector('.catalog-item[data-card-id="' + activeId + '"]');
+        if (activeItem) {
+            activeItem.classList.add('active');
+        }
+    }
+
+    function buildCatalog() {
+        var catalogItems = document.getElementById('catalogItems');
+        if (!catalogItems) return;
+
+        catalogItems.innerHTML = '';
+
+        var cards = document.querySelectorAll('.response-card');
+        cards.forEach(function(card, index) {
+            var titleElement = card.querySelector('.card-title');
+            var title = titleElement ? titleElement.textContent.trim() : 'Report ' + (index + 1);
+
+            var catalogItem = document.createElement('div');
+            catalogItem.className = 'catalog-item';
+            catalogItem.setAttribute('data-card-id', index);
+            catalogItem.textContent = title.length > 35 ? title.substring(0, 32) + '...' : title;
+            catalogItem.onclick = function() {
+                navigateToCard(index);
+            };
+
+            catalogItems.appendChild(catalogItem);
+        });
+    }
+
+    function checkCatalogVisibility() {
+        var catalog = document.getElementById('catalog');
+        if (!catalog) return;
+
+        var cards = document.querySelectorAll('.response-card');
+
+        // Only show catalog if there are 2 or more cards
+        if (cards.length < 2) {
+            catalog.classList.remove('visible');
+            return;
+        }
+
+        var anyTitleVisible = false;
+
+        cards.forEach(function(card) {
+            var header = card.querySelector('.card-header');
+            if (header) {
+                var rect = header.getBoundingClientRect();
+                var isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+
+                if (isVisible) {
+                    anyTitleVisible = true;
+                }
+            }
+        });
+
+        // Show catalog only when scrolled down and no titles are visible
+        var scrolled = window.scrollY > 200;
+
+        if (scrolled && !anyTitleVisible) {
+            catalog.classList.add('visible');
+        } else {
+            catalog.classList.remove('visible');
+        }
+    }
+
+    function saveCardState(cardId, isCollapsed) {
+        try {
+            var cardStates = JSON.parse(localStorage.getItem('cardStates') || '{}');
+            cardStates[cardId] = isCollapsed;
+            localStorage.setItem('cardStates', JSON.stringify(cardStates));
+        } catch (e) {
+            console.error('Error saving card state:', e);
+        }
+    }
+
+    function restoreCardStates() {
+        try {
+            var cardStates = JSON.parse(localStorage.getItem('cardStates') || '{}');
+            var restored = false;
+
+            for (var cardId in cardStates) {
+                if (cardStates[cardId]) {
+                    var content = document.querySelector('.card-content[data-card-id="' + cardId + '"]');
+                    var header = document.querySelector('.card-header[data-card-id="' + cardId + '"]');
+
+                    if (content && header) {
+                        var card = content.parentElement;
+                        // Add collapsed class immediately without animation
+                        content.style.transition = 'none';
+                        content.classList.add('collapsed');
+                        card.classList.add('collapsed');
+
+                        // Re-enable transitions after a frame
+                        setTimeout(function(elem) {
+                            elem.style.transition = '';
+                        }, 50, content);
+
+                        restored = true;
+                    }
+                }
+            }
+
+            if (restored) {
+                console.log('Card states restored');
+            }
+        } catch (e) {
+            console.error('Error restoring card states:', e);
+        }
+    }
+
+    async function clearHistory() {
+        if (confirm('Are you sure you want to clear all webhook call history?')) {
+            try {
+                var response = await fetch('/api/clear', {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    location.reload();
+                }
+            } catch (error) {
+                alert('Error clearing history: ' + error.message);
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Render markdown content first
+        var contentBlocks = document.querySelectorAll('.content-text');
+        contentBlocks.forEach(function(block) {
+            var rawText = block.getAttribute('data-content');
+            if (rawText) {
+                block.innerHTML = renderContent(rawText);
+            }
+        });
+
+        // Build catalog
+        buildCatalog();
+
+        // Restore card collapse states immediately without delay
+        restoreCardStates();
+
+        // Check catalog visibility on scroll
+        window.addEventListener('scroll', checkCatalogVisibility);
+        checkCatalogVisibility(); // Initial check
+
+        // Observe scroll to update catalog active state
+        var observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting && entry.intersectionRatio > 0.5) {
+                    var cardId = entry.target.id.replace('card-', '');
+                    updateCatalogActive(cardId);
+                }
+            });
+        }, { threshold: 0.5 });
+
+        document.querySelectorAll('.response-card').forEach(function(card) {
+            observer.observe(card);
+        });
+    });
+
+    setInterval(function() {
+        location.reload();
+    }, 30000);
+</script>
+</body>
+</html>
