@@ -74,6 +74,35 @@ public class DashboardController {
         }
     }
 
+    @GetMapping("/api/data")
+    @ResponseBody
+    public List<WebhookResponse> getData() {
+        try {
+            logger.debug("API data request");
+            List<WebhookResponse> history = new ArrayList<>(webhookService.getHistory());
+            return history;
+        } catch (Exception e) {
+            logger.error("Error getting data", e);
+            return new ArrayList<>();
+        }
+    }
+
+    @GetMapping("/api/latest")
+    @ResponseBody
+    public WebhookResponse getLatestResponse() {
+        try {
+            List<WebhookResponse> history = new ArrayList<>(webhookService.getHistory());
+            if (history.isEmpty()) {
+                return null; // 或抛出异常，前端处理 204
+            }
+            // 假设 history 是按时间倒序（最新在前），取第一个
+            return history.get(0);
+        } catch (Exception e) {
+            logger.error("Error fetching latest response", e);
+            throw new RuntimeException("Failed to fetch latest response");
+        }
+    }
+
     @DeleteMapping("/api/clear")
     @ResponseBody
     public Map<String, String> clearHistory() {

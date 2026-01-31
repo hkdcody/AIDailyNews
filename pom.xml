@@ -79,6 +79,9 @@
                         </goals>
                     </execution>
                 </executions>
+                <configuration>
+                    <mainClass>com.example.webhook.Application</mainClass>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -87,9 +90,11 @@
                 <configuration>
                     <source>21</source>
                     <target>21</target>
+                    <release>21</release>
                 </configuration>
             </plugin>
         </plugins>
+        <finalName>webhook-receiver-1.0.0</finalName>
     </build>
 
     <repositories>

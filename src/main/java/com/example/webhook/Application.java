@@ -2,29 +2,16 @@ package com.example.webhook;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import java.util.HashMap;
-import java.util.Map;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
+@EnableScheduling
 public class Application {
-
     public static void main(String[] args) {
-        SpringApplication app = new SpringApplication(Application.class);
-
-        // 从系统环境变量读取 PORT（Railway 会自动设置）
-        String port = System.getenv("PORT");
-        if (port != null && !port.isEmpty()) {
-            Map<String, Object> props = new HashMap<>();
-            props.put("server.port", port);
-            app.setDefaultProperties(props);
-            System.out.println(">>> Using PORT from environment: " + port);
-        } else {
-            System.out.println(">>> No PORT env var found, using default (8080)");
-        }
-
-        app.run(args);
+        SpringApplication.run(Application.class, args);
     }
 }
+
 
 
 //webhook-receiver/

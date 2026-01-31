@@ -24,12 +24,12 @@
             left: 0;
             top: 50%;
             transform: translateY(-50%) translateX(-100%);
-            width: 224px;
+            width: 200px;
             background: white;
             border-radius: 0 12px 12px 0;
-            padding: 16px;
+            padding: 14px;
             box-shadow: 2px 0 12px rgba(0,0,0,0.15);
-            max-height: 56vh;
+            max-height: 50vh;
             overflow-y: auto;
             z-index: 1000;
             transition: transform 0.3s ease-out;
@@ -799,9 +799,12 @@
         button.innerHTML = '<span class="loading"></span> Calling...';
         button.disabled = true;
 
-        // Add loading indicator to catalog
-        var loadingId = 'loading-' + Date.now();
-        addLoadingCardToCatalog(loadingId);
+        // Get current data count before triggering
+        var initialCount = document.querySelectorAll('.response-card:not([id^="temp-"])').length;
+
+        // Create a temporary "generating" card
+        var tempCardId = 'temp-' + Date.now();
+        createGeneratingCard(tempCardId, 'AI News');
 
         try {
             var response = await fetch('/api/trigger', {
@@ -809,39 +812,52 @@
             });
 
             if (response.ok) {
-                // Wait a bit for the report to be generated
-                setTimeout(function() {
-                    location.reload();
+                // Poll for new data every 2 seconds
+                var pollCount = 0;
+                var maxPolls = 100; // Maximum 60 seconds
+
+                var pollInterval = setInterval(async function() {
+                    pollCount++;
+
+                    try {
+                        // Fetch current page to check for new cards
+                        var pageResponse = await fetch(window.location.href);
+                        if (pageResponse.ok) {
+                            var htmlText = await pageResponse.text();
+                            var parser = new DOMParser();
+                            var doc = parser.parseFromString(htmlText, 'text/html');
+                            var newCards = doc.querySelectorAll('.response-card:not([id^="temp-"])');
+
+                            // Check if we have more cards than before
+                            if (newCards.length > initialCount) {
+                                console.log('New data detected! Reloading...');
+                                clearInterval(pollInterval);
+                                location.reload();
+                                return;
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Polling error:', e);
+                    }
+
+                    // Timeout after max polls
+                    if (pollCount >= maxPolls) {
+                        console.log('Polling timeout, reloading anyway...');
+                        clearInterval(pollInterval);
+                        location.reload();
+                    }
                 }, 2000);
             } else {
                 alert('Error triggering webhook');
                 button.innerHTML = originalText;
                 button.disabled = false;
-                removeLoadingCardFromCatalog(loadingId);
+                removeGeneratingCard(tempCardId);
             }
         } catch (error) {
             alert('Error: ' + error.message);
             button.innerHTML = originalText;
             button.disabled = false;
-            removeLoadingCardFromCatalog(loadingId);
-        }
-    }
-
-    function addLoadingCardToCatalog(id) {
-        var catalogItems = document.getElementById('catalogItems');
-        if (catalogItems) {
-            var loadingItem = document.createElement('div');
-            loadingItem.className = 'catalog-item loading';
-            loadingItem.id = id;
-            loadingItem.textContent = 'Generating Report';
-            catalogItems.insertBefore(loadingItem, catalogItems.firstChild);
-        }
-    }
-
-    function removeLoadingCardFromCatalog(id) {
-        var loadingItem = document.getElementById(id);
-        if (loadingItem) {
-            loadingItem.remove();
+            removeGeneratingCard(tempCardId);
         }
     }
 
@@ -851,8 +867,12 @@
         button.innerHTML = '<span class="loading"></span> Calling...';
         button.disabled = true;
 
-        var loadingId = 'loading-' + Date.now();
-        addLoadingCardToCatalog(loadingId);
+        // Get current data count before triggering
+        var initialCount = document.querySelectorAll('.response-card:not([id^="temp-"])').length;
+
+        // Create a temporary "generating" card
+        var tempCardId = 'temp-weixin-' + Date.now();
+        createGeneratingCard(tempCardId, 'Weixin News');
 
         try {
             var response = await fetch('/api/trigger/weixin', {
@@ -860,21 +880,111 @@
             });
 
             if (response.ok) {
-                setTimeout(function() {
-                    location.reload();
+                // Poll for new data every 2 seconds
+                var pollCount = 0;
+                var maxPolls = 30; // Maximum 60 seconds
+
+                var pollInterval = setInterval(async function() {
+                    pollCount++;
+
+                    try {
+                        // Fetch current page to check for new cards
+                        var pageResponse = await fetch(window.location.href);
+                        if (pageResponse.ok) {
+                            var htmlText = await pageResponse.text();
+                            var parser = new DOMParser();
+                            var doc = parser.parseFromString(htmlText, 'text/html');
+                            var newCards = doc.querySelectorAll('.response-card:not([id^="temp-"])');
+
+                            // Check if we have more cards than before
+                            if (newCards.length > initialCount) {
+                                console.log('New data detected! Reloading...');
+                                clearInterval(pollInterval);
+                                location.reload();
+                                return;
+                            }
+                        }
+                    } catch (e) {
+                        console.log('Polling error:', e);
+                    }
+
+                    // Timeout after max polls
+                    if (pollCount >= maxPolls) {
+                        console.log('Polling timeout, reloading anyway...');
+                        clearInterval(pollInterval);
+                        location.reload();
+                    }
                 }, 2000);
             } else {
                 var data = await response.json();
                 alert('Error: ' + (data.error || 'Failed to trigger Weixin webhook'));
                 button.innerHTML = originalText;
                 button.disabled = false;
-                removeLoadingCardFromCatalog(loadingId);
+                removeGeneratingCard(tempCardId);
             }
         } catch (error) {
             alert('Error: ' + error.message);
             button.innerHTML = originalText;
             button.disabled = false;
-            removeLoadingCardFromCatalog(loadingId);
+            removeGeneratingCard(tempCardId);
+        }
+    }
+
+    function createGeneratingCard(cardId, newsType) {
+        var grid = document.querySelector('.response-grid');
+        if (!grid) return;
+
+        // Remove empty state if exists
+        var emptyState = grid.querySelector('.empty-state');
+        if (emptyState) {
+            emptyState.style.display = 'none';
+        }
+
+        var card = document.createElement('div');
+        card.className = 'response-card';
+        card.id = cardId;
+        card.innerHTML = `
+            <div class="card-header">
+                <div class="card-title generating">Generating ${newsType} Report</div>
+                <div class="card-header-right">
+                    <span class="status-badge status-success">Pending</span>
+                </div>
+            </div>
+            <div class="timestamp">Generating at ${new Date().toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            }).replace(/\//g, '-')}</div>
+            <div class="card-content">
+                <div class="content-body" style="text-align: center; padding: 60px 40px; color: #6b7280;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">⏳</div>
+                    <div style="font-size: 16px;">Please wait while the report is being generated...</div>
+                    <div style="font-size: 14px; margin-top: 10px; color: #9ca3af;">This may take 10-30 seconds</div>
+                </div>
+            </div>
+        `;
+
+        // Insert at the beginning of the grid (before empty state or first card)
+        grid.insertBefore(card, grid.firstChild);
+    }
+
+    function removeGeneratingCard(cardId) {
+        var card = document.getElementById(cardId);
+        if (card) {
+            card.remove();
+        }
+
+        // Restore empty state if no real cards exist
+        var grid = document.querySelector('.response-grid');
+        if (grid) {
+            var realCards = grid.querySelectorAll('.response-card:not([id^="temp-"])');
+            var emptyState = grid.querySelector('.empty-state');
+
+            if (realCards.length === 0 && emptyState) {
+                emptyState.style.display = 'block';
+            }
         }
     }
 

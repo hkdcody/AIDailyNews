@@ -20,16 +20,35 @@ public class WebhookScheduler {
         this.webhookConfig = webhookConfig;
     }
 
-    // Run at 9 AM every day
-    @Scheduled(cron = "0 0 9 * * *")
-    public void scheduledWebhookCall() {
+    // AI News: Run at 9 AM, 1 PM, and 6 PM every day
+    @Scheduled(cron = "0 0 9,13,18 * * *")
+    public void scheduledAINewsCall() {
         if (!webhookConfig.isSchedulerEnabled()) {
-            logger.info("Scheduler is disabled. Skipping scheduled webhook call.");
+            logger.info("Scheduler is disabled. Skipping scheduled AI news call.");
             return;
         }
 
-        logger.info("Scheduled webhook call started at 9 AM");
+        logger.info("Scheduled AI news call started");
         WebhookResponse response = webhookService.callWebhook();
-        logger.info("Webhook call completed with status: {}", response.getStatusCode());
+        logger.info("AI news call completed with status: {}", response.getStatusCode());
+    }
+
+    // Weixin News: Run at 9 AM every day
+    @Scheduled(cron = "0 0 9 * * *")
+    public void scheduledWeixinNewsCall() {
+        if (!webhookConfig.isSchedulerEnabled()) {
+            logger.info("Scheduler is disabled. Skipping scheduled Weixin news call.");
+            return;
+        }
+
+        String weixinUrl = webhookConfig.getWeixin().getUrl();
+        if (weixinUrl == null || weixinUrl.isEmpty()) {
+            logger.warn("Weixin webhook URL is not configured. Skipping scheduled Weixin news call.");
+            return;
+        }
+
+        logger.info("Scheduled Weixin news call started");
+        WebhookResponse response = webhookService.callWeixinWebhook();
+        logger.info("Weixin news call completed with status: {}", response.getStatusCode());
     }
 }

@@ -56,7 +56,7 @@ public class WebhookConfig {
     public static class WeixinConfig {
         private String url;
         private String method = "GET";
-        private int timeoutSeconds = 1000;
+        private int timeoutSeconds = 30;
 
         public String getUrl() {
             return url;
