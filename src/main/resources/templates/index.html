@@ -793,72 +793,40 @@
         return html;
     }
 
+function escapeHtml(text) {
+    return text.replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;',
+        '"': '&quot;', "'": '&#039;'
+    }[m]));
+}
     async function triggerWebhook() {
         var button = event.target;
         var originalText = button.innerHTML;
         button.innerHTML = '<span class="loading"></span> Calling...';
         button.disabled = true;
+        // 获取当前最新卡片的时间戳（用于对比）
+    // 替换原来的 cards 获取方式
+const realCards = Array.from(document.querySelectorAll('.response-card'))
+    .filter(card => card.dataset.timestamp); // 只保留有 timestamp 的
 
-        // Get current data count before triggering
-        var initialCount = document.querySelectorAll('.response-card:not([id^="temp-"])').length;
+const latestTs = realCards.length
+    ? realCards[0].dataset.timestamp
+    : new Date(0).toISOString();
 
-        // Create a temporary "generating" card
-        var tempCardId = 'temp-' + Date.now();
-        createGeneratingCard(tempCardId, 'AI News');
-
-        try {
-            var response = await fetch('/api/trigger', {
-                method: 'POST'
-            });
-
-            if (response.ok) {
-                // Poll for new data every 2 seconds
-                var pollCount = 0;
-                var maxPolls = 100; // Maximum 60 seconds
-
-                var pollInterval = setInterval(async function() {
-                    pollCount++;
-
-                    try {
-                        // Fetch current page to check for new cards
-                        var pageResponse = await fetch(window.location.href);
-                        if (pageResponse.ok) {
-                            var htmlText = await pageResponse.text();
-                            var parser = new DOMParser();
-                            var doc = parser.parseFromString(htmlText, 'text/html');
-                            var newCards = doc.querySelectorAll('.response-card:not([id^="temp-"])');
-
-                            // Check if we have more cards than before
-                            if (newCards.length > initialCount) {
-                                console.log('New data detected! Reloading...');
-                                clearInterval(pollInterval);
-                                location.reload();
-                                return;
-                            }
-                        }
-                    } catch (e) {
-                        console.log('Polling error:', e);
-                    }
-
-                    // Timeout after max polls
-                    if (pollCount >= maxPolls) {
-                        console.log('Polling timeout, reloading anyway...');
-                        clearInterval(pollInterval);
-                        location.reload();
-                    }
-                }, 2000);
-            } else {
-                alert('Error triggering webhook');
-                button.innerHTML = originalText;
-                button.disabled = false;
-                removeGeneratingCard(tempCardId);
-            }
-        } catch (error) {
-            alert('Error: ' + error.message);
-            button.innerHTML = originalText;
-            button.disabled = false;
-            removeGeneratingCard(tempCardId);
+    try {
+        const res = await fetch('/api/trigger', { method: 'POST' });
+        if (res.ok) {
+            pollForNewResponse(latestTs); // ← 关键：启动轮询
+        } else {
+            alert('Trigger failed');
         }
+    } catch (e) {
+        alert('Network error');
+    } finally {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }
+
     }
 
     async function triggerWeixinWebhook() {
@@ -867,108 +835,29 @@
         button.innerHTML = '<span class="loading"></span> Calling...';
         button.disabled = true;
 
-        // Get current data count before triggering
-        var initialCount = document.querySelectorAll('.response-card:not([id^="temp-"])').length;
+       // 替换原来的 cards 获取方式
+const realCards = Array.from(document.querySelectorAll('.response-card'))
+    .filter(card => card.dataset.timestamp); // 只保留有 timestamp 的
 
-        // Create a temporary "generating" card
-        var tempCardId = 'temp-weixin-' + Date.now();
-        createGeneratingCard(tempCardId, 'Weixin News');
+const latestTs = realCards.length
+    ? realCards[0].dataset.timestamp
+    : new Date(0).toISOString();
 
-        try {
-            var response = await fetch('/api/trigger/weixin', {
-                method: 'POST'
-            });
-
-            if (response.ok) {
-                // Poll for new data every 2 seconds
-                var pollCount = 0;
-                var maxPolls = 30; // Maximum 60 seconds
-
-                var pollInterval = setInterval(async function() {
-                    pollCount++;
-
-                    try {
-                        // Fetch current page to check for new cards
-                        var pageResponse = await fetch(window.location.href);
-                        if (pageResponse.ok) {
-                            var htmlText = await pageResponse.text();
-                            var parser = new DOMParser();
-                            var doc = parser.parseFromString(htmlText, 'text/html');
-                            var newCards = doc.querySelectorAll('.response-card:not([id^="temp-"])');
-
-                            // Check if we have more cards than before
-                            if (newCards.length > initialCount) {
-                                console.log('New data detected! Reloading...');
-                                clearInterval(pollInterval);
-                                location.reload();
-                                return;
-                            }
-                        }
-                    } catch (e) {
-                        console.log('Polling error:', e);
-                    }
-
-                    // Timeout after max polls
-                    if (pollCount >= maxPolls) {
-                        console.log('Polling timeout, reloading anyway...');
-                        clearInterval(pollInterval);
-                        location.reload();
-                    }
-                }, 2000);
-            } else {
-                var data = await response.json();
-                alert('Error: ' + (data.error || 'Failed to trigger Weixin webhook'));
-                button.innerHTML = originalText;
-                button.disabled = false;
-                removeGeneratingCard(tempCardId);
-            }
-        } catch (error) {
-            alert('Error: ' + error.message);
-            button.innerHTML = originalText;
-            button.disabled = false;
-            removeGeneratingCard(tempCardId);
+    try {
+        const res = await fetch('/api/trigger/weixin', { method: 'POST' });
+        if (res.ok) {
+            pollForNewResponse(latestTs); // ← 同样启动轮询
+        } else {
+            alert('Weixin trigger failed');
         }
+    } catch (e) {
+        alert('Network error');
+    } finally {
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }
     }
 
-    function createGeneratingCard(cardId, newsType) {
-        var grid = document.querySelector('.response-grid');
-        if (!grid) return;
-
-        // Remove empty state if exists
-        var emptyState = grid.querySelector('.empty-state');
-        if (emptyState) {
-            emptyState.style.display = 'none';
-        }
-
-        var card = document.createElement('div');
-        card.className = 'response-card';
-        card.id = cardId;
-        card.innerHTML = `
-            <div class="card-header">
-                <div class="card-title generating">Generating ${newsType} Report</div>
-                <div class="card-header-right">
-                    <span class="status-badge status-success">Pending</span>
-                </div>
-            </div>
-            <div class="timestamp">Generating at ${new Date().toLocaleString('zh-CN', {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
-            }).replace(/\//g, '-')}</div>
-            <div class="card-content">
-                <div class="content-body" style="text-align: center; padding: 60px 40px; color: #6b7280;">
-                    <div style="font-size: 48px; margin-bottom: 20px;">⏳</div>
-                    <div style="font-size: 16px;">Please wait while the report is being generated...</div>
-                    <div style="font-size: 14px; margin-top: 10px; color: #9ca3af;">This may take 10-30 seconds</div>
-                </div>
-            </div>
-        `;
-
-        // Insert at the beginning of the grid (before empty state or first card)
-        grid.insertBefore(card, grid.firstChild);
-    }
 
     function removeGeneratingCard(cardId) {
         var card = document.getElementById(cardId);
@@ -1172,6 +1061,114 @@
         }
     }
 
+    function insertNewCard(response) {
+    const grid = document.querySelector('.response-grid');
+    if (!grid) return;
+
+    // 隐藏空状态提示（如果有）
+    const empty = grid.querySelector('.empty-state');
+    if (empty) empty.style.display = 'none';
+
+    const card = document.createElement('div');
+    card.className = 'response-card';
+    card.dataset.timestamp = response.timestamp;
+
+      // 生成唯一ID（用时间戳避免冲突）
+const cardId = 'card-' + Date.now();
+card.id = cardId;
+
+
+    const title = response.data?.title || 'Response Report';
+    const isSuccess = response.statusCode >= 200 && response.statusCode < 300;
+    const statusClass = isSuccess ? 'status-success' : 'status-error';
+    const timeStr = new Date(response.timestamp).toLocaleString('zh-CN').replace(/\//g, '-');
+
+    let contentHtml = '';
+    if (response.data?.content) {
+        // 如果你已有 renderContent 函数，直接用；否则简单 escape
+        contentHtml = '<div class="content-body">' + (typeof renderContent === 'function'
+            ? renderContent(response.data.content)
+            : response.data.content) + '</div>';
+    } else if (response.error) {
+        contentHtml = '<div class="error-message">Error: ' + escapeHtml(response.error) + '</div>';
+    }
+
+    card.innerHTML = `
+        <div class="card-header" onclick="toggleCard(this)" data-card-id="${cardId.split('-')[1]}">
+            <div class="card-title">${escapeHtml(title)}</div>
+            <div class="card-header-right">
+                <span class="status-badge ${statusClass}">Status: ${response.statusCode}</span>
+                <span class="collapse-icon">▼</span>
+            </div>
+        </div>
+        <div class="timestamp">Generated at ${timeStr}</div>
+        <div class="card-content">${contentHtml}</div>
+    `;
+
+    grid.insertBefore(card, grid.firstChild);
+    // 如果你有目录功能，调用 buildCatalog()
+    if (typeof buildCatalog === 'function') buildCatalog();
+}
+
+async function pollForNewResponse(initialTimestamp) {
+    console.log('🔍 Starting poll. Initial timestamp:', initialTimestamp);
+    let retries = 0;
+    const maxRetries = 30;
+
+    const check = async () => {
+        try {
+            const res = await fetch('/api/latest');
+            if (res.ok) {
+                const latest = await res.json();
+                console.log('📡 /api/latest response:', latest); // ← 关键！
+
+                if (latest && latest.timestamp) {
+                    const latestTime = new Date(latest.timestamp).getTime();
+                    const initialTime = new Date(initialTimestamp).getTime();
+
+                    console.log('🕒 Comparing times:', {
+                        latestTime,
+                        initialTime,
+                        isValidLatest: !isNaN(latestTime),
+                        isValidInitial: !isNaN(initialTime),
+                        isLater: latestTime > initialTime
+                    });
+
+                    if (!isNaN(latestTime) && !isNaN(initialTime) && latestTime > initialTime) {
+                        console.log('✅ New response detected! Inserting card...');
+                        insertNewCard(latest);
+                        return true;
+                    } else {
+                        console.log('⚠️ No new response (time not newer or invalid)');
+                    }
+                } else {
+                    console.log('⚠️ Response missing timestamp');
+                }
+            } else {
+                console.log('⚠️ /api/latest returned non-OK status:', res.status);
+            }
+        } catch (e) {
+            console.warn('Polling error:', e);
+        }
+        return false;
+    };
+
+    if (await check()) return;
+
+    const interval = setInterval(async () => {
+        retries++;
+        console.log(`🔄 Poll attempt #${retries}`);
+        if (await check() || retries >= maxRetries) {
+            clearInterval(interval);
+            if (retries >= maxRetries) {
+                console.log('❌ Polling timed out after', maxRetries, 'attempts');
+                alert('Timed out. Try refreshing manually.');
+            }
+        }
+    }, 2000);
+}
+
+
     document.addEventListener('DOMContentLoaded', function() {
         // Render markdown content first
         var contentBlocks = document.querySelectorAll('.content-text');
@@ -1207,9 +1204,7 @@
         });
     });
 
-    setInterval(function() {
-        location.reload();
-    }, 30000);
+
 </script>
 </body>
 </html>

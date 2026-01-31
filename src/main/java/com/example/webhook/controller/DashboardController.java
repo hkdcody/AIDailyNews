@@ -90,17 +90,12 @@ public class DashboardController {
     @GetMapping("/api/latest")
     @ResponseBody
     public WebhookResponse getLatestResponse() {
-        try {
-            List<WebhookResponse> history = new ArrayList<>(webhookService.getHistory());
-            if (history.isEmpty()) {
-                return null; // 或抛出异常，前端处理 204
-            }
-            // 假设 history 是按时间倒序（最新在前），取第一个
-            return history.get(0);
-        } catch (Exception e) {
-            logger.error("Error fetching latest response", e);
-            throw new RuntimeException("Failed to fetch latest response");
+        List<WebhookResponse> history = new ArrayList<>(webhookService.getHistory());
+        if (history.isEmpty()) {
+            return null;
         }
+        // ✅ 取最后一个元素（最新）
+        return history.get(history.size() - 1);
     }
 
     @DeleteMapping("/api/clear")
