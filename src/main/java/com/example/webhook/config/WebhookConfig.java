@@ -10,7 +10,7 @@ public class WebhookConfig {
     private String url;
     private String method = "GET";
     private int timeoutSeconds = 30;
-    private boolean schedulerEnabled = true;
+    private boolean schedulerEnabled = false;
     private WeixinConfig weixin = new WeixinConfig();
 
     public String getUrl() {
